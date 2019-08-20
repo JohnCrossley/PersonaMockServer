@@ -1,9 +1,9 @@
-package com.jccworld.personmockserver.responsehandler;
+package com.jccworld.personamockserver.responsehandler;
 
-import com.jccworld.personmockserver.PersonaDataFilePicker;
-import com.jccworld.personmockserver.Route;
-import com.jccworld.personmockserver.persona.Persona;
-import com.jccworld.personmockserver.uti.HeaderWriter;
+import com.jccworld.personamockserver.PersonaDataFilePicker;
+import com.jccworld.personamockserver.Route;
+import com.jccworld.personamockserver.persona.Persona;
+import com.jccworld.personamockserver.util.HeaderWriter;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;

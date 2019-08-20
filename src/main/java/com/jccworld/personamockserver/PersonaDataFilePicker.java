@@ -1,4 +1,4 @@
-package com.jccworld.personmockserver;
+package com.jccworld.personamockserver;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.File;

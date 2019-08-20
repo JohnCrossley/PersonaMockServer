@@ -1,6 +1,6 @@
-package com.jccworld.personmockserver;
+package com.jccworld.personamockserver;
 
-import com.jccworld.personmockserver.responsehandler.ResponseHandler;
+import com.jccworld.personamockserver.responsehandler.ResponseHandler;
 
 import java.util.Properties;
 import java.util.regex.Pattern;

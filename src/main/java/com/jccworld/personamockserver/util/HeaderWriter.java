@@ -1,7 +1,7 @@
-package com.jccworld.personmockserver.uti;
+package com.jccworld.personamockserver.util;
 
-import com.jccworld.personmockserver.persona.Persona;
-import com.jccworld.personmockserver.PersonaDataFilePicker;
+import com.jccworld.personamockserver.persona.Persona;
+import com.jccworld.personamockserver.PersonaDataFilePicker;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;

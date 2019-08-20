@@ -1,7 +1,7 @@
-package com.jccworld.personmockserver.responsehandler;
+package com.jccworld.personamockserver.responsehandler;
 
-import com.jccworld.personmockserver.Route;
-import com.jccworld.personmockserver.persona.Persona;
+import com.jccworld.personamockserver.Route;
+import com.jccworld.personamockserver.persona.Persona;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
