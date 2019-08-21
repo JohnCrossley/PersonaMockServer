@@ -22,7 +22,12 @@ public class HeaderWriter {
             final Enumeration e = properties.propertyNames();
             while (e.hasMoreElements()) {
                 final String name = (String) e.nextElement();
-                response.addHeader(name, properties.getProperty(name));
+
+                if (name.equals("PMS_Status")) {
+                    response.setStatus(Integer.parseInt(properties.getProperty(name)));
+                } else {
+                    response.addHeader(name, properties.getProperty(name));
+                }
             }
         }
     }
