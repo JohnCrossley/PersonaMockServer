@@ -152,10 +152,6 @@ public class RouteFilter implements Filter {
         return matches;
     }
 
-    private void doubleWrite(final String message) {
-
-    }
-
     public static Settings getSettings() {
         return settings;
     }
