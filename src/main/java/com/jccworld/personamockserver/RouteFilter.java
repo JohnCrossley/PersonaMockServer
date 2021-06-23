@@ -1,7 +1,7 @@
 package com.jccworld.personamockserver;
 
-import com.jccworld.personamockserver.persona.Persona;
-import com.jccworld.personamockserver.responsehandler.FileResponseHandler;
+import com.jccworld.personamockserver.persona.PersonaExtractor;
+import com.jccworld.personamockserver.responsehandler.PassThroughResponseHandler;
 
 import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;
@@ -13,50 +13,58 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+
+import static com.jccworld.personamockserver.Route.*;
 
 @SuppressWarnings("unused")
 public class RouteFilter implements Filter {
-    private static final String PATH_REGEX = "path_regex";
-    private static final String HANDLER_CLASS = "handler_class";
-    private static final String DEFAULT_HANDLER_CLASS = FileResponseHandler.class.getName();
-    private static final String DELAY = "delay";
+    public static final String INIT_PARAM_PERSONA_EXTRACTOR_CLASS = "persona_extractor_class";
+    public static final String INIT_PARAM_DATA_ROOT = "data_root";
 
-    private static final String DEFINITIONS_FOLDER = "definitions";
+    private PersonaExtractor personaExtractor;
+    private static PersonaDataFilePicker personaDataFilePicker;
+    private static Settings settings = null;
 
-    private Persona persona;
-
-    final List<Route> routes = new ArrayList<>();
+    private final List<Route> routes = new ArrayList<>();
 
     public void init(final FilterConfig config) throws ServletException {
-        final String definitionsPath = config.getServletContext().getRealPath(DEFINITIONS_FOLDER);
-        final File definitions = new File(definitionsPath);
+        System.out.println("[PMS] SERVER IS STARTING............................................................................");
+        settings = new Settings(config.getInitParameter(INIT_PARAM_DATA_ROOT));
+        personaDataFilePicker = new PersonaDataFilePicker(settings);
+
+        final File definitions = new File(settings.definitionsRoot);
 
         final String[] configFiles = definitions.list();
-        for(String configFile : configFiles) {
-            try {
-                routes.add(parse(new File(definitionsPath + File.separator + configFile)));
+        System.out.println("[PMS] Loading routes (" + (configFiles == null ? 0 : configFiles.length) + ")");
+
+        if (configFiles != null) {
+            for (final String configFile : configFiles) {
+                try {
+                    final Route route = parse(new File(settings.definitionsRoot + File.separator + configFile));
+                    routes.add(route);
+                    System.out.println("[PMS]    Loaded route: " + route.getPath());
                 } catch (Exception e) {
-                System.out.println("[JCC] FAIL:      " + e.getMessage());
-                e.printStackTrace();
+                    System.out.println("[PMS] ** Failed route: " + configFile +  "  with: " + e + " **");
+                    e.printStackTrace(System.err);
+                }
             }
         }
 
-        final String personaClassName = config.getInitParameter("persona_class");
+        final String personaClassName = config.getInitParameter(INIT_PARAM_PERSONA_EXTRACTOR_CLASS);
         if (personaClassName == null) {
-            System.out.println("[JCC]   Without a persona_class configured, the ResponseHandlers will need to handle persona state.");
-            persona = Persona.NO_OP;
+            System.out.println("[PMS] ** Without a " + INIT_PARAM_PERSONA_EXTRACTOR_CLASS + " configured, the ResponseHandlers will need to handle persona state. **");
+            personaExtractor = PersonaExtractor.NO_OP;
         } else {
             try {
-                Class<Persona> personaClass = (Class<Persona>) Class.forName(personaClassName);
-                persona = personaClass.newInstance();
+                Class<PersonaExtractor> personaClass = (Class<PersonaExtractor>) Class.forName(personaClassName);
+                personaExtractor = personaClass.newInstance();
             } catch (Exception e) {
+                System.out.println("[PMS] ** Cannot use " + INIT_PARAM_PERSONA_EXTRACTOR_CLASS + " because: " + e + " **");
                 throw new ServletException(e);
             }
         }
 
-        System.out.println("[JCC]   SERVER READY! ***********************************************");
+        System.out.println("[PMS] SERVER READY! ********************************************************************************");
     }
 
     private Route parse(final File file) throws IOException, ClassNotFoundException, IllegalAccessException, InstantiationException {
@@ -69,16 +77,20 @@ public class RouteFilter implements Filter {
         final String pathRegex = properties.getProperty(PATH_REGEX);
         final String responseHandlerClassName = properties.getProperty(HANDLER_CLASS, DEFAULT_HANDLER_CLASS);
 
-        final Route route = Route.Factory.create(pathRegex, properties, responseHandlerClassName);
+        if (pathRegex == null) {
+            throw new IllegalArgumentException("Route `path` is null");
+        }
 
-        System.out.println("[JCC] Loaded route: " + route.getPath() + " / " + route.getResponseHandler().getClass().getName());
+        final Route route = Route.Factory.create(file.getPath(), pathRegex, properties, responseHandlerClassName);
 
         return route;
     }
 
     public void destroy() {
+        System.out.println("[PMS] SERVER SHUTDOWN! *****************************************************************************");
     }
 
+    @Override
     public void doFilter(final ServletRequest req, final ServletResponse resp, final FilterChain chain) throws ServletException, IOException {
         final HttpServletRequest request = (HttpServletRequest) req;
         final HttpServletResponse response = (HttpServletResponse) resp;
@@ -86,43 +98,44 @@ public class RouteFilter implements Filter {
 
         //support for METHOD=ALL|GET|POST|PUT|HEAD
 
-        System.out.println("[JCC] NEW REQUEST: *******************************************************************************");
-        System.out.println("[JCC]   URI: " + uri + " method: " + ((HttpServletRequest) req).getMethod());
+        System.out.println("[PMS] NEW REQUEST: *******************************************************************************");
+        System.out.println("[PMS]   URI: " + uri + " method: " + ((HttpServletRequest) req).getMethod());
 
         final List<Route> routes = getRoutesForUri(uri);
         if (routes.size() == 0) {
-            System.out.println("[JCC]   no routes found for: " + uri);
-            resp.getWriter().write("no routes found for: " + uri);
+            System.out.println("[PMS]   no routes found for: " + uri);
+
+            response.setStatus(500);
+            response.getWriter().write("no routes found for: " + uri);
 
         } else if (routes.size() > 1) {
-            System.out.println("[JCC] found too many matches: " + uri + " count: " + routes.size());
-            resp.getWriter().write("found too many routes: " + routes.size());
+            System.out.println("[PMS]   found too many matches: " + uri + " (" + routes.size() + ")");
 
+            response.setStatus(500);
+            response.getWriter().write("found too many matches: " + uri + " (" + routes.size() + ")");
         } else {
-            final Route route = Route.Factory.clone(routes.get(0));
+            //1 matching route
+            final Route route = Factory.clone(routes.get(0));
+            System.out.println("[PMS]   found one starting point: " + route.getPath().toString());
 
-            handleDelay(route);
+            if (isPassThrough(route)) {
+                System.out.println("[PMS]   passing through to: " + route.getResponseHandler());
 
-            System.out.println("[JCC]   found one starting point " + route.getPath().toString());
-            route.getResponseHandler().dispatch(request, response, persona, route);
-        }
-    }
+                chain.doFilter(request, response);
+            } else {
+                System.out.println("[PMS]   standard route using response handler: " + route.getResponseHandler());
 
-    private void handleDelay(final Route route) throws ServletException {
-        final CountDownLatch countDownLatch = new CountDownLatch(1);
-        try {
-            String delayString = route.getProperties().getProperty(DELAY);
-            if (delayString != null) {
-                System.out.println("[JCC]   delay: " + delayString);
-                int delay = Integer.parseInt(delayString);
-                countDownLatch.await(delay, TimeUnit.MILLISECONDS);
+                route.getResponseHandler().dispatch(personaDataFilePicker, personaExtractor, route, request, response);
             }
-        } catch (InterruptedException e) {
-            throw new ServletException(e);
         }
+        System.out.println("[PMS] END REQUEST  *******************************************************************************");
     }
 
-    private List<Route> getRoutesForUri(String uri) {
+    private boolean isPassThrough(final Route route) {
+        return route.getResponseHandler().getClass() == PassThroughResponseHandler.class;
+    }
+
+    private List<Route> getRoutesForUri(final String uri) {
         final List<Route> matches = new ArrayList<>();
         for (Route route : routes) {
             if (route.getPath().matcher(uri).find()) {
@@ -130,12 +143,24 @@ public class RouteFilter implements Filter {
             }
         }
 
-        System.out.println("[JCC] Routes matching -------------------------------------------------------------------");
-        for(final Route route : matches) {
-            System.out.println("[JCC] --> " + route.getPath());
+        System.out.println("[PMS] Routes matching -------------------------------------------------------------------");
+        for (final Route route : matches) {
+            System.out.println("[PMS] --> " + route.getPath() + "    (" + route.getFilename() + ")");
         }
-        System.out.println("[JCC] -----------------------------------------------------------------------------------");
+        System.out.println("[PMS] -----------------------------------------------------------------------------------");
 
         return matches;
+    }
+
+    private void doubleWrite(final String message) {
+
+    }
+
+    public static Settings getSettings() {
+        return settings;
+    }
+
+    public static PersonaDataFilePicker getPersonaDataFilePicker() {
+        return personaDataFilePicker;
     }
 }

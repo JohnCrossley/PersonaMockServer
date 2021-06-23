@@ -2,7 +2,7 @@ package com.jccworld.personamockserver.responsehandler;
 
 import com.jccworld.personamockserver.PersonaDataFilePicker;
 import com.jccworld.personamockserver.Route;
-import com.jccworld.personamockserver.persona.Persona;
+import com.jccworld.personamockserver.persona.PersonaExtractor;
 import com.jccworld.personamockserver.util.HeaderWriter;
 
 import javax.servlet.http.HttpServletRequest;
@@ -12,20 +12,25 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * The default responder.  Looks for <code>response_headers</code> and <code>response_body</code> in the route
+ * configuration file and streams them back to the user.
+ */
 public class FileResponseHandler implements ResponseHandler {
-    public static final String RESPONSE_HEADERS = "response_headers";
-    public static final String RESPONSE_BODY = "response_body";
+    public static final String RESPONSE_HEADERS_KEY = "response_headers";
+    public static final String RESPONSE_BODY_KEY = "response_body";
 
     @Override
-    public void dispatch(final HttpServletRequest request, final HttpServletResponse response, final Persona persona, final Route route) throws IOException {
-        final String headerFile = route.getProperties().getProperty(RESPONSE_HEADERS);
-        final String bodyFile = route.getProperties().getProperty(RESPONSE_BODY);
+    public void dispatch(final PersonaDataFilePicker personaDataFilePicker, final PersonaExtractor personaExtractor, final Route route,
+                         final HttpServletRequest request, final HttpServletResponse response) throws IOException {
+        final String headerFile = route.getProperties().getProperty(RESPONSE_HEADERS_KEY);
+        final String bodyFile = route.getProperties().getProperty(RESPONSE_BODY_KEY);
+        final String persona = personaExtractor.extract(route, request);
 
-        final PersonaDataFilePicker personaDataFilePicker = new PersonaDataFilePicker();
+        HeaderWriter.setHeaders(headerFile, persona, personaDataFilePicker, response);
 
-        HeaderWriter.setHeaders(headerFile, persona, personaDataFilePicker, request, response);
-
-        final Path path = FileSystems.getDefault().getPath(personaDataFilePicker.createLocalFilePath(request, persona.extract(request), bodyFile));
+        System.out.println("[PMS]   FileResponseHandler.dispatch() writing response...");
+        final Path path = FileSystems.getDefault().getPath(personaDataFilePicker.createLocalFilePath(persona, bodyFile));
         Files.copy(path, response.getOutputStream());
     }
 }

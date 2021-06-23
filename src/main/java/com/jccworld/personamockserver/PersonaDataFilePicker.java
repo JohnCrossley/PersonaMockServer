@@ -1,21 +1,26 @@
 package com.jccworld.personamockserver;
 
-import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 
 public class PersonaDataFilePicker {
-    public String createLocalFilePath(final HttpServletRequest request, final String persona, final String filename) {
-        final String personaDirectory = request.getServletContext().getRealPath("personas/" + persona) + File.separator + filename;
-        final String defaultDirectory = request.getServletContext().getRealPath("personas/default") + File.separator + filename;
+    private final Settings settings;
 
-        if (pathExists(personaDirectory)) {
-            System.out.println("[JCC]   [" + request.getRequestURI() + "] persona `" + persona + "' found");
-            return personaDirectory;
-        } else if (pathExists(defaultDirectory)) {
-            System.out.println("[JCC]   [" + request.getRequestURI() + "] persona `" + persona + "' missing but default found");
-            return defaultDirectory;
+    public PersonaDataFilePicker(Settings settings) {
+        this.settings = settings;
+    }
+
+    public String createLocalFilePath(final String persona, final String filename) {
+        final String personaFilePath = settings.getPersona(persona, filename);
+        final String defaultFilePath = settings.getDefault(filename);
+
+        if (pathExists(personaFilePath)) {
+            System.out.println("[PMS]   persona `" + persona + "' found [" + personaFilePath + "]");
+            return personaFilePath;
+        } else if (pathExists(defaultFilePath)) {
+            System.out.println("[PMS]   persona `" + persona + "' missing, but default found [" + defaultFilePath + "]");
+            return defaultFilePath;
         } else {
-            System.out.println("[JCC]   [" + request.getRequestURI() + "] persona `" + persona + "' and default missing !!");
+            System.out.println("[PMS]   persona `" + persona + "' and default missing !!  No file to serve! :(");
             return null;
         }
     }
