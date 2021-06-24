@@ -101,33 +101,43 @@ public class RouteFilter implements Filter {
         System.out.println("[PMS] NEW REQUEST: *******************************************************************************");
         System.out.println("[PMS]   URI: " + uri + " method: " + ((HttpServletRequest) req).getMethod());
 
-        final List<Route> routes = getRoutesForUri(uri);
-        if (routes.size() == 0) {
-            System.out.println("[PMS]   no routes found for: " + uri);
+        try {
+            final List<Route> routes = getRoutesForUri(uri);
+            if (routes.size() == 0) {
+                System.out.println("[PMS]   no routes found for: " + uri);
 
-            response.setStatus(500);
-            response.getWriter().write("no routes found for: " + uri);
+                response.setStatus(500);
+                response.getWriter().write("no routes found for: " + uri);
 
-        } else if (routes.size() > 1) {
-            System.out.println("[PMS]   found too many matches: " + uri + " (" + routes.size() + ")");
+            } else if (routes.size() > 1) {
+                System.out.println("[PMS]   found too many matches: " + uri + " (" + routes.size() + ")");
 
-            response.setStatus(500);
-            response.getWriter().write("found too many matches: " + uri + " (" + routes.size() + ")");
-        } else {
-            //1 matching route
-            final Route route = Factory.clone(routes.get(0));
-            System.out.println("[PMS]   found one starting point: " + route.getPath().toString());
-
-            if (isPassThrough(route)) {
-                System.out.println("[PMS]   passing through to: " + route.getResponseHandler());
-
-                chain.doFilter(request, response);
+                response.setStatus(500);
+                response.getWriter().write("found too many matches: " + uri + " (" + routes.size() + ")");
             } else {
-                System.out.println("[PMS]   standard route using response handler: " + route.getResponseHandler());
+                //1 matching route
+                final Route route = Factory.clone(routes.get(0));
+                System.out.println("[PMS]   found one starting point: " + route.getPath().toString());
 
-                route.getResponseHandler().dispatch(personaDataFilePicker, personaExtractor, route, request, response);
+                if (isPassThrough(route)) {
+                    System.out.println("[PMS]   passing through to: " + route.getResponseHandler());
+
+                    chain.doFilter(request, response);
+                } else {
+                    System.out.println("[PMS]   standard route using response handler: " + route.getResponseHandler());
+
+                    route.getResponseHandler().dispatch(personaDataFilePicker, personaExtractor, route, request, response);
+                }
             }
+        } catch (Exception e) {
+            System.out.println("[PMS] ** FATAL: " + e);
+
+            response.setStatus(500);
+            response.getWriter().write("FATAL: " + e);
+
+            e.printStackTrace(System.err);
         }
+
         System.out.println("[PMS] END REQUEST  *******************************************************************************");
     }
 

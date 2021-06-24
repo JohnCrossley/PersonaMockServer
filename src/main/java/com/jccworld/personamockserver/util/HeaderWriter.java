@@ -1,9 +1,11 @@
 package com.jccworld.personamockserver.util;
 
 import com.jccworld.personamockserver.PersonaDataFilePicker;
+import com.jccworld.personamockserver.Settings;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Enumeration;
@@ -29,7 +31,13 @@ public class HeaderWriter {
         System.out.println("[PMS]   HeaderWriter.setHeaders() file: " + file + " persona: " + persona + " ");
         if (file != null) {
             final Properties properties = new Properties();
-            final InputStream inputStream = new FileInputStream(personaDataFilePicker.createLocalFilePath(persona, file));
+
+            final String absolutePath = personaDataFilePicker.createLocalFilePath(persona, file);
+            if (absolutePath == null) {
+                throw new FileNotFoundException(file + " does not exist!");
+            }
+
+            final InputStream inputStream = new FileInputStream(absolutePath);
             properties.load(inputStream);
 
             final Enumeration e = properties.propertyNames();

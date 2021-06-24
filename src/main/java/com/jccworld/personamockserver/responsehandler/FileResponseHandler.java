@@ -7,6 +7,7 @@ import com.jccworld.personamockserver.util.HeaderWriter;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -30,7 +31,13 @@ public class FileResponseHandler implements ResponseHandler {
         HeaderWriter.setHeaders(headerFile, persona, personaDataFilePicker, response);
 
         System.out.println("[PMS]   FileResponseHandler.dispatch() writing response...");
-        final Path path = FileSystems.getDefault().getPath(personaDataFilePicker.createLocalFilePath(persona, bodyFile));
+
+        final String absolutePath = personaDataFilePicker.createLocalFilePath(persona, bodyFile);
+        if (absolutePath == null) {
+            throw new FileNotFoundException(bodyFile + " does not exist!");
+        }
+
+        final Path path = FileSystems.getDefault().getPath(absolutePath);
         Files.copy(path, response.getOutputStream());
     }
 }
