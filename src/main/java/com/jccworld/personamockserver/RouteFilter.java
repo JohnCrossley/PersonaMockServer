@@ -29,7 +29,7 @@ public class RouteFilter implements Filter {
 
     public void init(final FilterConfig config) throws ServletException {
         System.out.println("[PMS] SERVER IS STARTING............................................................................");
-        settings = new Settings(config.getInitParameter(INIT_PARAM_DATA_ROOT));
+        settings = new Settings(config.getServletContext().getRealPath("/WEB-INF"), config.getInitParameter(INIT_PARAM_DATA_ROOT));
         personaDataFilePicker = new PersonaDataFilePicker(settings);
 
         final File definitions = new File(settings.definitionsRoot);

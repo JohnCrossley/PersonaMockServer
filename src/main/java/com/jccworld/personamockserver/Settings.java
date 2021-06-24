@@ -10,10 +10,10 @@ public class Settings {
     public final String definitionsRoot;
     public final String personasRoot;
 
-    public Settings(String root) {
+    public Settings(final String webInfPath, String root) {
         if (root == null) {
             System.out.println("[PMS]  Settings.init() " + RouteFilter.INIT_PARAM_DATA_ROOT + " not set, using `WEB-INF` as root.   Classes located in: " + getClass().getProtectionDomain().getCodeSource().getLocation().getPath());
-            root = getClass().getProtectionDomain().getCodeSource().getLocation().getPath().replaceAll("/classes/", "");
+            root = webInfPath;
         }
 
         definitionsRoot = root + File.separator + DEFINITIONS_FOLDER;
